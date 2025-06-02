@@ -157,6 +157,13 @@
   align-items: center;
 
 }
+
+.card-like{
+  position: absolute;
+  width: 50px;
+  height: 50px;
+}
+
 /* Responsive design */
 @media (max-width: 600px) {
   .header {
