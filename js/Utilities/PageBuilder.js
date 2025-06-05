@@ -1,14 +1,31 @@
-import {getAllCategories, getProductById, getProductsByCategory, searchProducts} from "./dummyjson.js";
-import {getCategoryList} from "../Model/category.js";
+import {getProductById, getProductsByCategory, searchProducts} from "./dummyjson.js";
 import {Card} from "../Model/card.js";
 import {Product} from "../Model/product.js";
 import {router} from "./router.js";
+import {header} from "../PartialView/header.js";
+import {navigation} from "../PartialView/navigation.js";
+import {renderEngine} from "./renderEngine.js";
+import {getLike} from "../PartialView/like.js";
+import {cart} from "./cart.js";
 
-class PageBuilder {
+export class PageBuilder {
   static partialViewPath = "js/PartialView/";
   static limit = 10;
   static page = 1;
+
+  static #instance = null;
+
+  static getInstance() {
+    if (!PageBuilder.#instance) {
+      PageBuilder.#instance = new PageBuilder();
+    }
+    return PageBuilder.#instance;
+  }
+
   constructor() {
+    if (PageBuilder.#instance) {
+      throw new Error('Use PageBuilder.getInstance() to get the singleton instance.');
+    }
   }
 
   async #loadView(path){
@@ -20,77 +37,22 @@ class PageBuilder {
     }
   }
 
-  addEvents(){
-    let button = document.getElementById("search");
-    let input = document.getElementById("searchInput");
-    button.addEventListener("click", (e) => {
-      e.preventDefault();
-      let params = new URLSearchParams(window.location.search);
-      params.set("search", input.value);
-      this.renderContent(null, PageBuilder.page, input.value);
-    })
-  }
-
-  async buildHeader(){
-
-    let headerText = await this.#loadView("header.html");
-    let header = document.createElement("div");
-    header.classList.add("header");
-    header.innerHTML = headerText;
-    return header;
-  }
-
-  async buildNavigation(){
-    let nav = document.createElement("div");
-    let ul = document.createElement("ul");
-    let categories = await getAllCategories();
-    let catList = getCategoryList(categories);
-
-    nav.classList.add("nav");
-
-    catList.forEach(cat => {
-      let path =   window.location.pathname + `?category=${cat.slug}`
-      router().addRoute(path, async () =>{
-        await this.renderContent(cat.url, PageBuilder.page);
-      });
-      let li = document.createElement("li");
-      li.textContent = cat.name;
-      li.onclick = async () =>{
-        PageBuilder.page = 1;
-        await router().navigate(path, {slug: cat.slug});
-      }
-      ul.appendChild(li);
-    });
-    nav.appendChild(ul);
-    return nav;
-  }
-
-  async renderContent(path, page, search = null){
+  async renderContent(products, page = 1){
     let content = document.getElementById("content");
-    let products;
-    if(search === null){
-      console.log(path);
-      products = await getProductsByCategory(path);
-    }else{
-      products = await searchProducts(search);
-    }
-
-    if(products.products.length <= 0){
-      content.innerHTML = "<h1>Opps! no products found</h1>";
-      return;
-    }
-
+    content.classList.add("content");
     let prodList = [];
-    products.products.forEach(product => {
+    products.forEach(product => {
       prodList.push(new Product(product));
     })
-
     content.innerHTML = "";
     prodList.slice(page*PageBuilder.limit - PageBuilder.limit, page*PageBuilder.limit).forEach(product => {
-      let path = `?product=${product.id}`
-      router().addRoute(path, async () =>{
+      let path = window.location.pathname + `?product=${product.id}`
+      console.log(path);
+
+      const render = async () => {
         await this.renderProductPage(product.id);
-      })
+      }
+      router.addRoute(path, render.bind(this)); // Bind to PageBuilder instance
       let card = new Card({
         id: product.id,
         name: product.title,
@@ -100,13 +62,11 @@ class PageBuilder {
         price: product.price,
       });
 
-      new Promise(() => {
         let c = card.createCard();
-        c.addEventListener("click",async () =>{
-          await router().navigate(path);
+        c.addEventListener("click", async () =>{
+           await router.navigate(path);
         })
         content.appendChild(c);
-      })
     })
   }
 
@@ -115,61 +75,45 @@ class PageBuilder {
     let productJson = await getProductById(productId);
     let product = new Product(productJson);
     let html = await this.#loadView("product.html");
-    html = html.replace("%image%", product.images[0]);
+    //html = html.replace("%image%", product.images[0]);
+
+    html = await renderEngine.render(html, productJson);
+    let like = await getLike(productId);
     let content = document.getElementById("content");
+    content.classList.remove("content");
     content.innerHTML = html;
-  }
-
-  buildPagination(){
-    let pag = document.createElement("div");
-    let next = document.createElement("button");
-    let prev = document.createElement("button");
-
-    pag.classList.add("pagination");
-    next.classList.add("button-next");
-    prev.classList.add("button-prev");
-    next.textContent = "Next";
-    prev.textContent = "Previous";
-
-    let params = new URLSearchParams(window.location.search);
-    let path = window.location.pathname + "?category=" + params.get("category");
-
-    next.addEventListener("click",()=>{
-      PageBuilder.page++;
-      router().navigate(path);
+    content.prepend(like);
+    let cartElem = content.querySelector(".card-cart");
+    cartElem.addEventListener("click", (e) =>{
+      e.stopPropagation();
+      cart.addItem(productId);
+      console.log(cart.getItems());
+      let headerCard = document.querySelector(".header-cart");
+      headerCard.textContent = `Cart: ${cart.getItems().length}`;
     })
-    prev.addEventListener("click",()=>{
-      PageBuilder.page--;
-      router().navigate(path);
-    })
-
-    pag.appendChild(prev);
-    pag.appendChild(next);
-    return pag;
   }
 
   async buildPage(){
-    let nav = await this.buildNavigation();
-    let header = await this.buildHeader();
     let content = document.createElement("div");
+    let head = header();
+    let nav = await navigation(this.renderContent.bind(this));
 
     content.setAttribute("class", "content");
     content.setAttribute("id", "content");
 
-    let pag = this.buildPagination()
+    //let pag = this.buildPagination()
 
     let container = document.createElement("div");
     container.classList.add("container");
 
 
-    container.appendChild(header);
+    container.appendChild(head);
     container.appendChild(nav);
     container.appendChild(content);
-    //container.appendChild(pag);
     document.body.appendChild(container);
 
-    this.addEvents()
+
   }
 }
 
-export const pageBuilder = new PageBuilder();
+export const pageBuilder = PageBuilder.getInstance();

@@ -30,14 +30,6 @@ export class Card{
     price.classList.add("card-price");
     category.classList.add("card-category");
 
-    div.addEventListener("mouseover", () =>{
-      description.textContent = this.description;
-
-    })
-    div.addEventListener("mouseout", () =>{
-      description.textContent = this.description.substring(0, 50) + "...";
-    })
-
     id.setAttribute("type", "hidden");
     id.value = this.id;
     img.src = this.images[0];
@@ -50,6 +42,9 @@ export class Card{
     cartBtn.addEventListener("click", (e) =>{
       e.stopPropagation();
       cart.addItem(this.id);
+      let cartElem = document.querySelector(".header-cart");
+      console.log(cart.getItems());
+      cartElem.textContent = `Cart: ${cart.getItems().length}`;
     })
 
 

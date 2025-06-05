@@ -2,16 +2,17 @@ import { pageBuilder } from "./Utilities/PageBuilder.js";
 import {router} from "./Utilities/router.js";
 await pageBuilder.buildPage()
 
+router.addRoute(window.location.pathname, async () => {
+  let content = document.getElementById("content");
+  content.innerText = "DUMMYSHOP";
+})
 
 let path = window.location.pathname;
 
 let params = new URLSearchParams(window.location.search);
-let category = params.get("category");
 let product = params.get("product");
-if(category !== null){
-  path+= "?category=" + category;
-  router().navigate(path);
-}else if(product !== null){
+if(product !== null) {
   pageBuilder.renderProductPage(product);
+}else{
+  router.navigate(path + window.location.search);
 }
-

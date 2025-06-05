@@ -1,8 +1,20 @@
 import {IStorage} from "./IStorage.js";
 
 class CookieStorage extends IStorage {
+  static #instance = null;
+
+  static getInstance() {
+    if (!CookieStorage.#instance) {
+      CookieStorage.#instance = new CookieStorage();
+    }
+    return CookieStorage.#instance;
+  }
+
   constructor() {
     super();
+    if(CookieStorage.#instance){
+      throw new Error('Use CookieStorage.getInstance() to get the singleton instance.');
+    }
     const cookies = document.cookie.split(';');
     if (cookies.length > 0 && cookies[0] !== '') {
     for (let cookie of cookies) {
@@ -31,4 +43,4 @@ class CookieStorage extends IStorage {
   }
 }
 
-export const cookies = new CookieStorage();
+export const cookies = CookieStorage.getInstance();
