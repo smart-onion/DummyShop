@@ -1,4 +1,4 @@
-import {pageBuilder} from "../Utilities/pageBuilder.js";
+import {pageBuilder} from "../Utilities/PageBuilder.js";
 import {searchProducts} from "../Utilities/dummyjson.js";
 import {favorites} from "../Utilities/favorites.js";
 import {router} from "../Utilities/router.js";
